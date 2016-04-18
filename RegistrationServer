@@ -1,0 +1,69 @@
+#Server registration
+
+from socket import*
+
+serverPort = 12009
+serverSocket = socket(AF_INET,SOCK_STREAM)
+serverSocket.bind(('',serverPort))
+serverSocket.listen(10)
+
+while 1:
+    connectionSocket, address = serverSocket.accept()
+
+    #Wait for registration message
+    register= connectionSocket.recv(1024)
+    register= register.decode('ascii')+"\n"
+
+    #split the the data received into variables
+    userName= register.split("\t")[0].strip()
+    password= register.split("\t")[1].strip()
+    passwordCheck= register.split("\t")[2].strip()
+    firstName= register.split("\t")[3].strip()
+    lastName= register.split("\t")[4].strip()
+    email= register.split("\t")[5].strip()
+
+    #Check if the length of password not <6
+    if(len(password)<6):
+        registerStatus="SHORT"
+        registerMessage= "Registration Status: Password Too Short"
+        print(registerMessage)
+        connectionSocket.send(registerStatus.encode())
+
+    elif(password != passwordCheck):
+        registerStatus="RETYPE"
+        registerMessage= "Registration Status: Passwords Do Not Match. Re-Enter Passwords"
+        print(registerMessage)
+        connectionSocket.send(registerStatus.encode())
+
+
+    for line in open("RegisterFile.txt",'r'):
+         registeredID= line.split("\t")[0].strip()
+         regFirstName= line.split("\t")[2].strip()
+         regLastName= line.split("\t")[3].strip()
+
+         #Check if the userName/userID is already registered.
+         if(userName == registeredID):
+             #If registered check with First Name and Last
+             if(regFirstName == firstName and regLastName == lastName):
+                 registerStatus = "EXIST"
+                 registerMessage= "Register Status: You Are Already Registered"
+                 print(registerMessage)
+                 connectionSocket.send(registerStatus.encode())
+             else:
+                 registerStatus= "TAKEN"
+                 registerMessage= "Register Status: User Name Unavailable"
+                 print(registerMessage)
+                 connectionStatus.send(registerStatus.encode())
+
+    #If everything is correct, Register
+    else:
+        forRegister = userName+"\t"+password+"\t"+firstName+"\t"+lastName+"\t"+email+"\n"
+        output_file= open("RegisterFile.txt", 'a')
+        output_file.write(forRegister)
+        output_file.close()
+        registerStatus= "SUCCESS"
+        registerMessage= "Register Status: Registration Was Successful"
+        connectionSocket.send(registerStatus.encode())
+
+connectionSocket.close()
+        
