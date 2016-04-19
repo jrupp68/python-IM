@@ -26,18 +26,25 @@ from socket import*
 
 # root.mainloop()
 
-serverName = "192.168.0.102"
+serverName = "localhost"
 serverPort = 12009
 clientSocket = socket(AF_INET, SOCK_STREAM)
 clientSocket.connect((serverName, serverPort))
 
 def getFriends():
-	outgoing = "GET_FRIENDS \t JRUPP68"
+	outgoing = "GET_FRIENDS\tJRUPP68"
 	clientSocket.send(outgoing.encode())
 
 	incoming = clientSocket.recv(1024)
+	print("Friends \t Status")
 	print(incoming.decode('ascii'))
 
+def addFriend():
+        friend = input("Please enter the username of the friend you would like to add :")
+        outgoing = "ADD_FRIEND\tJRUPP68" + friend
+
+        clientSocket.send(outgoing.encode())
+        
 def getOfflineMessages():
 	outgoing = "GET_OFFLINE_MESSAGES \t JRUPP68"
 	clientSocket.send(outgoing.encode())
@@ -52,7 +59,24 @@ def getNewMessages():
 	incoming = clientSocket.recv(1024)
 	print(incoming.decode('ascii'))
 
-	
-getFriends()
+def sendMessage():
+        print("Please enter username of the friend you want to message :")
+        user = input()
+        print("Enter the message :")
+        message = input()
+        print("Please enter your username :")
+        me = input()
+        outgoing = "SEND_MESSAGE \t " + me + "\t" + message + "\t" + user
+        clientSocket.send(outgoing.encode())
+
+
+action = input("Enter 1 to show friends list \nEnter 2 to send message :")
+print(action)
+if(action == "1"):
+        print("\n")
+        getFriends()
+elif(action == "2"):
+        print("Message")
+        sendMessage()
 
 
