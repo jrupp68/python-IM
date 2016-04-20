@@ -1,30 +1,4 @@
-from tkinter import*
 from socket import*
-
-# root = Tk()
-# root.title("IM Service")
-# root.minsize(width=300,height=300)
-
-# im = Message(root, text="Test Message", width=200)
-# im.grid(row=0, column=1)
-# im.pack
-
-# msgLabel = Label(root, text="Message :")
-# msgLabel.grid(row = 5, column = 0)
-
-# msg = Entry(root)
-# msg.grid(row = 5, column = 1)
-
-# send = Button(root, text="Send")
-# send.grid(row = 5, column = 2)
-#friend1 = Button(root,text="Jeff")
-#friend1.grid(row=0)
-#friend2 = Button(root,text="Adam")
-#friend2.grid(row=1)
-#friend3 = Button(root,text="John")
-#friend3.grid(row=2)
-
-# root.mainloop()
 
 serverName = "localhost"
 serverPort = 12009
@@ -61,22 +35,6 @@ def getFriends(username):
 
 def addFriend(user, friend):
     outgoing = "ADD_FRIEND\t" + user + "\t" + friend
-
-    clientSocket.send(outgoing.encode())
-
-    incoming = clientSocket.recv(1024)
-    print(incoming.decode('ascii'))
-        
-def getOfflineMessages():
-    user = input("Please enter your username :")
-    outgoing = "GET_OFFLINE_MESSAGES\t" + user
-    clientSocket.send(outgoing.encode())
-
-    incoming = clientSocket.recv(1024)
-    print(incoming.decode('ascii'))
-
-def getNewMessages(user):
-    outgoing = "GET_NEW_MESSAGES\t" + user
     clientSocket.send(outgoing.encode())
 
     incoming = clientSocket.recv(1024)
@@ -90,7 +48,14 @@ def sendMessage(sender, receiver, message):
     print(incoming.decode('ascii'))
 
 def viewMessages(user, friend):
-    outgoing = "VIEW_ALL_MESSAGES\t" + user
+    outgoing = "VIEW_MESSAGES\t" + user + "\t" + friend
+    clientSocket.send(outgoing.encode())
+
+    incoming = clientSocket.recv(1024)
+    print(incoming.decode('ascii'))
+
+def checkMessages(user):
+    outgoing = "CHECK_NEW_MESSAGES\t" + user
     clientSocket.send(outgoing.encode())
 
     incoming = clientSocket.recv(1024)
@@ -104,7 +69,7 @@ def logout(user):
     print(incoming.decode('ascii'))
 
 while 1:
-    action = input("Enter \n1 - show friends list \n2 - send message \n3 - register \n4 - login \n5 - Add Friend \n6 - View Messages \n7 - Logout \n:")
+    action = input("Enter \n1 - Show Friends List \n2 - Send Message \n3 - Register \n4 - Login \n5 - Add Friend \n6 - View Messages \n7 - Check For New Messages \n8 - Logout \n:")
     print(action)
     if(action == "1"):
         print("\n")
@@ -150,6 +115,11 @@ while 1:
         
         viewMessages(user, friend)
     elif(action == "7"):
+        print("\n")
+        user = input("Pleae enter your username :")
+
+        checkMessages(user)
+    elif(action == "8"):
         print("\n")
         user = input("Please enter your username :")
 

@@ -1,7 +1,5 @@
 #Server registration
 
-#Add flag to message file if message has been received or not
-
 # After login, GUI should show friends list with current online status and
 # if there are any new/undelivered messages
 
@@ -10,6 +8,7 @@
 # if this should be in a new window or the same window) where it displays all
 # messages that have been sent between
 
+import os
 from socket import*
 
 def register(incoming1):
@@ -38,7 +37,6 @@ def register(incoming1):
 
     else:
         for line in open("RegisterFile.txt",'r'):
-            print(line)
             if(line != ""):
                 registeredID= line.split("\t")[0].strip().upper()
                 regFirstName= line.split("\t")[2].strip().upper()
@@ -125,29 +123,39 @@ def getFriendsList(incoming1):
 
     # Check if user is logged in
     status = checkLogin(user)
-    print(status)
+
     if(status == "ONLINE"):
         filename = user+"_FRIENDS.txt"
 
         # Open user's friendslist text file
         file = open(filename, 'r')
-        for line in file:
 
-            # Get each user from friendslist 
-            outgoing += line.split("\t")[0].strip().upper()
+        # Chec if the file is empty
+        if os.stat(filename).st_size>0:
+            for line in file:
 
-            # Open online status text file
-            statusFile = open("ONLINE_STATUS.txt", 'r')
-            for line2 in statusFile:
+                # Get each user from friendslist 
+                outgoing += line.split("\t")[0].strip().upper()
 
-                # Find friend in online status text file
-                if(line2.split("\t")[0].strip().upper() == line.split("\t")[0].strip().upper()):
+                # Open online status text file
+                statusFile = open("ONLINE_STATUS.txt", 'r')
+                for line2 in statusFile:
 
-                    # Friend found, get online status
-                    outgoing += "\t\t" + line2.split("\t")[1].strip().upper() + "\n"
-                    break
+                    # Find friend in online status text file
+                    if(line2.split("\t")[0].strip().upper() == line.split("\t")[0].strip().upper()):
 
-        file.close()
+                        # Friend found, get online status
+                        outgoing += "\t\t" + line2.split("\t")[1].strip().upper() + "\n"
+                        statusFile.close()
+                        break
+
+            connectionSocket.send(outgoing.encode())
+            file.close()
+        else:
+            file.close()
+            print("The file is empty")
+            outgoing = "Your friends list is empty"
+            connectionSocket.send(outgoing.encode())
     else:
         outgoing = "You are not logged in, please login to continue"
     
@@ -197,32 +205,61 @@ def sendMessage(incoming1):
 
     # Check if user is logged on
     status = checkLogin(user)
-
     if(status == "ONLINE"):
-        filename = friend + "_MESSAGES.txt"
+        friendStatus = checkIfFriend(user, friend)
+        if(friendStatus == "1"):
+            filename = friend + "_MESSAGES.txt"
 
-        # Open friends message text file
-        file = open(filename, 'a')
-        writeMessage = message + "\t" + user + "\n"
+            # Open friends message text file
+            file = open(filename, 'a')
+            writeMessage = message + "\t" + user + "\t" + "1" + "\n"
 
-        # Write message to text file
-        a = file.write(writeMessage)
-        file.close()
+            # Write message to text file
+            a = file.write(writeMessage)
+            file.close()
 
-        # Check to make sure message was written
-        if(a > 1):
-            outgoing = "SUCCESS"
+            # Check to make sure message was written
+            if(a > 1):
+                outgoing = "SUCCESS"
+
+            else:
+                outgoing = "FAILED"
         else:
-            outgoing = "FAILED"
+            outgoing = "Friend not found"
     else:
         outgoing = "You are not logged in, please login to continue"
         
     connectionSocket.send(outgoing.encode())
 
-def viewAllMessages(incoming1):
+    
+def checkNewMessages(incoming1):
     # Get user from request
     user = incoming1.split("\t")[1].strip().upper()
 
+    filename = user + "_MESSAGES.txt"
+    file = open(filename, 'r')
+    outgoing = ""
+    
+    for line in file:
+        if(line != ""):
+            # Check if there are any '1's in the users message file
+            if(line.split("\t")[2].strip() == "1"):
+                # Add user who sent new message
+                if(outgoing == ""):
+                    outgoing += "New messages from these users:" + "\n" + line.split("\t")[1].strip() + "\n"
+
+    file.close()
+
+    if(outgoing == ""):
+        outgoing = "No new messages"
+        
+    connectionSocket.send(outgoing.encode())
+        
+def viewMessages(incoming1):
+    # Get user from request
+    user = incoming1.split("\t")[1].strip().upper()
+    sender = incoming1.split("\t")[2].strip().upper()
+                            
     # Check if user is logged on
     status = checkLogin(user)
 
@@ -234,8 +271,20 @@ def viewAllMessages(incoming1):
         outgoing = ""
         # Write all messages to a string
         for line in file:
-            outgoing += line.split("\t")[1].strip().upper() + ": " + line.split("\t")[0].strip()
+            outgoing += line.split("\t")[1].strip().upper() + ": " + line.split("\t")[0].strip() + "\n"
         file.close()
+
+        # Replace all 1's in users message text file to 0's (1 = new message, 0 = read message)
+        file = open(filename, 'r')
+        filedata = file.read()
+        file.close()
+
+        newdata = filedata.replace(sender + "\t" + "1", sender + "\t" + "0")
+
+        file = open(filename, 'w')
+        file.write(newdata)
+        file.close()
+
     else:
         outoing = "You are not logged in, please login to continue"
 
@@ -281,7 +330,18 @@ def checkLogin(user):
 
     # User not found, return offline        
     return "OFFLINE"
-            
+
+def checkIfFriend(user, friend):
+    filename = user + "_FRIENDS.txt"
+    file = open(filename, 'r')
+
+    for line in file:
+        friendCheck = line.split("\n")[0].strip().upper()
+        if(friend == friendCheck):
+            file.close()
+            return "1"
+    file.close()
+    return "0"
         
 serverPort = 12009
 serverSocket = socket(AF_INET,SOCK_STREAM)
@@ -315,14 +375,12 @@ while 1:
         elif(request == "SEND_MESSAGE"):
             sendMessage(incoming1)
 
-        elif(request == "VIEW_ALL_MESSAGES"):
-            viewAllMessages(incoming1)
+        elif(request == "VIEW_MESSAGES"):
+            viewMessages(incoming1)
 
-        elif(request == "GET_NEW_MESSAGES"):
-            user = incoming1.split("\t")[1].strip().upper()
-            friend = incoming1.split("\t")[2].strip().upper()
-            #Add code for getting new messages
-
+        elif(request == "CHECK_NEW_MESSAGES"):
+            checkNewMessages(incoming1)
+            
         elif(request == "LOGOUT"):
             logout(incoming1)
 
