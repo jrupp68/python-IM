@@ -100,6 +100,9 @@ def logout(user):
     outgoing = "LOGOUT\t" + user
     clientSocket.send(outgoing.encode())
 
+    incoming = clientSocket.recv(1024)
+    print(incoming.decode('ascii'))
+
 while 1:
     action = input("Enter \n1 - show friends list \n2 - send message \n3 - register \n4 - login \n5 - Add Friend \n6 - View Messages \n7 - Logout \n:")
     print(action)
