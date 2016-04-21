@@ -7,7 +7,7 @@
 # button for that specific friend. Clicking that button opens a chat (not sure
 # if this should be in a new window or the same window) where it displays all
 # messages that have been sent between
-
+       
 import os
 from socket import*
 
@@ -29,11 +29,13 @@ def register(incoming1):
         registerStatus="SHORT"
         registerMessage= "Registration Status: Password Too Short"
         print(registerMessage)
+        connectionSocket.send(registerStatus.encode())
 
     elif(password != passwordCheck):
         registerStatus="RETYPE"
         registerMessage= "Registration Status: Passwords Do Not Match. Re-Enter Passwords"
         print(registerMessage)
+        connectionSocket.send(registerStatus.encode())
 
     else:
         for line in open("RegisterFile.txt",'r'):
@@ -49,11 +51,13 @@ def register(incoming1):
                         registerStatus = "EXIST"
                         registerMessage= "Register Status: You Are Already Registered"
                         print(registerMessage)
+                        connectionSocket.send(registerStatus.encode())
 
                     else:
                         registerStatus= "TAKEN"
                         registerMessage= "Register Status: User Name Unavailable"
                         print(registerMessage)
+                        connectionSocket.send(registerStatus.encode())
 
         #If everything is correct, Register
         if(registerStatus == "GOOD"):
@@ -73,8 +77,9 @@ def register(incoming1):
             output_file.close()
             registerStatus= "SUCCESS"
             registerMessage= "Register Status: Registration Was Successful"
+            connectionSocket.send(registerStatus.encode())
 
-    connectionSocket.send(registerStatus.encode())
+    
 
 def login(incoming1):
     # Get username and password from request
@@ -82,20 +87,21 @@ def login(incoming1):
     password = incoming1.split("\t")[2].strip().upper()
 
     file = open("RegisterFile.txt", 'r')
-
+    flag = "0"
     # Find user in registration text file and check credentials
     for line in file:
         usernameCheck = line.split("\t")[0].strip().upper()
 
         # User found, check password
         if(username == usernameCheck):
-
+            flag = "1"
             # Get password from registration file
             passwordCheck = line.split("\t")[1].strip().upper()
 
             # Passwords are equal, send success message and change status to online
             if(password == passwordCheck):
                 outgoing = "SUCCESS"
+                file.close()
                 file = open("ONLINE_STATUS.txt", 'r')
 
                 # Get data in online status text file
@@ -107,14 +113,18 @@ def login(incoming1):
                 file = open("ONLINE_STATUS.txt", 'w')
                 file.write(newdata)
                 file.close()
-                break            
+                break           
             else:
+                file.close()
                 outgoing = "WRONG_PASSWORD"
-        else:
-            outgoing = "BAD_USERNAME"
-    file.close()
-    connectionSocket.send(outgoing.encode())
+                break
 
+    if(flag == "0"):
+        file.close()
+        outgoing = "BAD_USERNAME"
+    
+    connectionSocket.send(outgoing.encode())
+                
 def getFriendsList(incoming1):
     outgoing = ""
 
@@ -149,13 +159,11 @@ def getFriendsList(incoming1):
                         statusFile.close()
                         break
 
-            connectionSocket.send(outgoing.encode())
             file.close()
         else:
             file.close()
             print("The file is empty")
             outgoing = "Your friends list is empty"
-            connectionSocket.send(outgoing.encode())
     else:
         outgoing = "You are not logged in, please login to continue"
     
@@ -221,17 +229,18 @@ def sendMessage(incoming1):
             # Check to make sure message was written
             if(a > 1):
                 outgoing = "SUCCESS"
+                connectionSocket.send(outgoing.encode())
 
             else:
                 outgoing = "FAILED"
+                connectionSocket.send(outgoing.encode())
         else:
             outgoing = "Friend not found"
+            connectionSocket.send(outgoing.encode())
     else:
         outgoing = "You are not logged in, please login to continue"
-        
-    connectionSocket.send(outgoing.encode())
-
-    
+        connectionSocket.send(outgoing.encode())
+           
 def checkNewMessages(incoming1):
     # Get user from request
     user = incoming1.split("\t")[1].strip().upper()
@@ -271,7 +280,8 @@ def viewMessages(incoming1):
         outgoing = ""
         # Write all messages to a string
         for line in file:
-            outgoing += line.split("\t")[1].strip().upper() + ": " + line.split("\t")[0].strip() + "\n"
+            if(line.split("\t")[1].strip().upper() == sender):
+                outgoing += line.split("\t")[1].strip().upper() + ": " + line.split("\t")[0].strip() + "\n"
         file.close()
 
         # Replace all 1's in users message text file to 0's (1 = new message, 0 = read message)
@@ -305,10 +315,14 @@ def logout(incoming1):
     # Replace ONLINE with OFFLINE for newly logged in user
     newdata = filedata.replace(username + "\t" + "ONLINE", username + "\t" + "OFFLINE")
     file = open("ONLINE_STATUS.txt", 'w')
-    file.write(newdata)
+    a = file.write(newdata)
     file.close()
 
-    outgoing = "LOGGED_OFF"
+    if(a > 1):
+        outgoing = "LOGGED_OFF"
+    else:
+        outgoing = "FAILED"
+        
     connectionSocket.send(outgoing.encode())    
 
 def checkLogin(user):
